@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permainan Kedai Mini - Jom Membeli Belah</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Fredoka -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandYellow: '#FFD93D',
+                        brandOrange: '#FF8400',
+                        brandPink: '#FF6B6B',
+                        brandGreen: '#6BCB77',
+                        brandBlue: '#4D96FF',
+                        brandPurple: '#9D4EDD',
+                        bgCream: '#FFFBEB'
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            overflow-y: auto; /* Membenarkan pengguna seret / skrol ke atas & bawah */
+            font-family: 'Fredoka', sans-serif;
+            background-color: #3B82F6;
+            background-image: radial-gradient(#FACC15 2px, transparent 2px), radial-gradient(#4ADE80 2px, #EFF6FF 2px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Dynamic Theme Background per page */
+        .bg-theme-page1 { background: linear-gradient(135deg, #FEF3C7 0%, #E0F2FE 100%); }
+        .bg-theme-page2 { background: linear-gradient(135deg, #FFF1F2 0%, #FEF3C7 100%); }
+        .bg-theme-page3 { background: linear-gradient(135deg, #F3E8FF 0%, #ECFDF5 100%); }
+        .bg-theme-page4 { background: linear-gradient(135deg, #FEFCE8 0%, #E0E7FF 100%); }
+
+        /* Wood panel texture style inspired by reference image */
+        .wood-panel {
+            background: #D97706;
+            background-image: linear-gradient(to bottom, #F59E0B, #B45309);
+            border: 4px solid #78350F;
+        }
+
+        /* Card border frames inspired by reference */
+        .frame-yellow { border: 5px solid #FACC15; background: #FEFCE8; }
+        .frame-green  { border: 5px solid #4ADE80; background: #F0FDF4; }
+        .frame-purple { border: 5px solid #C084FC; background: #FAF5FF; }
+
+        /* Animasi Kad */
+        .bounce-card {
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
+        }
+        .bounce-card:hover {
+            transform: translateY(-3px) scale(1.02);
+        }
+        .bounce-card:active {
+            transform: scale(0.95);
+        }
+
+        /* Animasi denyutan butang mula */
+        @keyframes pulse-grow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+        .pulse-btn {
+            animation: pulse-grow 2s infinite ease-in-out;
+        }
+
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(4px);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen w-full flex flex-col items-center justify-start p-2 sm:p-4">
+
+    <!-- Container Utama: Bermula dari atas skrin supaya bahagian atas tidak terpotong -->
+    <div id="main-card-container" class="w-full max-w-4xl min-h-[580px] my-1 sm:my-2 bg-theme-page1 rounded-3xl border-8 border-yellow-400 shadow-2xl overflow-visible relative flex flex-col justify-between transition-colors duration-500">
+
+        <!-- Header Bar (Untuk Halaman 2 & 3 sahaja) -->
+        <header id="top-bar" class="hidden bg-gradient-to-r from-yellow-300 via-pink-300 to-sky-300 px-3 py-2.5 border-b-4 border-yellow-400 rounded-t-2xl flex justify-between items-center z-30 shrink-0 shadow-sm sticky top-0">
+            <!-- Butang Bakul (Halaman 2 & 3 sahaja) -->
+            <button id="basket-btn" onclick="openBasketModal()" class="flex items-center gap-2 bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white font-extrabold px-3 py-1.5 rounded-2xl shadow-md border-2 border-white transition transform active:scale-95 text-base sm:text-lg">
+                <i class="fa-solid fa-cart-shopping text-lg"></i>
+                <span>BAKUL</span>
+                <span id="basket-badge" class="bg-yellow-300 text-red-700 font-black rounded-full w-6 h-6 flex items-center justify-center border-2 border-white text-sm">0</span>
+            </button>
+
+            <!-- Slot kanan header untuk Butang Halaman 2 (halaman 3 sahaja) -->
+            <div id="nav-right-slot" class="flex items-center"></div>
+        </header>
+
+        <!-- Dynamic Main Area -->
+        <main class="flex-1 relative overflow-visible flex flex-col justify-between p-3 sm:p-6 space-y-4">
+
+            <!-- Background Cartoon Animal & Supermarket Decorations -->
+            <div class="absolute top-2 left-2 pointer-events-none opacity-25 text-yellow-500 text-2xl">
+                <i class="fa-solid fa-star"></i>
+            </div>
+            <div class="absolute top-8 right-4 pointer-events-none opacity-25 text-blue-400 text-2xl">
+                <i class="fa-solid fa-cloud"></i>
+            </div>
+            <div class="absolute bottom-10 left-3 pointer-events-none opacity-20 text-pink-500 text-2xl">
+                <i class="fa-solid fa-heart"></i>
+            </div>
+            <div class="absolute bottom-14 right-3 pointer-events-none opacity-20 text-purple-400 text-3xl">
+                <i class="fa-solid fa-store"></i>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- HALAMAN 1: TAJUK & MULA                    -->
+            <!-- ========================================== -->
+            <section id="page1" class="flex flex-col items-center justify-between text-center h-full min-h-[500px] my-auto py-2 space-y-4">
+                
+                <!-- Tajuk Utama Atas Tengah -->
+                <div class="w-full flex flex-col items-center mt-1 z-10">
+                    <div class="wood-panel px-6 py-2 rounded-3xl shadow-xl flex items-center gap-3">
+                        <i class="fa-solid fa-paw text-yellow-300 text-2xl sm:text-3xl"></i>
+                        <h1 class="text-white font-black text-3xl sm:text-5xl tracking-wide drop-shadow-md">
+                            JOM MEMBELI BELAH
+                        </h1>
+                        <i class="fa-solid fa-paw text-yellow-300 text-2xl sm:text-3xl"></i>
+                    </div>
+                    <div class="text-xs sm:text-base font-black text-amber-900 bg-yellow-300 inline-block px-5 py-0.5 rounded-full border-2 border-amber-500 mt-2 shadow-sm uppercase tracking-wider">
+                        PERMAINAN KEDAI MINI
+                    </div>
+                </div>
+
+                <!-- Gambar Kartun Kedai Haiwan Pasar Raya Inspired by Uploaded Reference Image -->
+                <div class="w-full max-w-lg bg-gradient-to-b from-sky-200 via-green-100 to-green-200 p-2 rounded-3xl border-4 border-amber-500 shadow-inner my-2 flex justify-center items-center relative overflow-hidden">
+                    <svg class="w-full h-48 sm:h-60" viewBox="0 0 500 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Latar Pokok & Pagar -->
+                        <rect x="0" y="180" width="500" height="80" fill="#86EFAC"/>
+                        <circle cx="40" cy="160" r="35" fill="#4ADE80"/>
+                        <circle cx="460" cy="160" r="35" fill="#4ADE80"/>
+                        <!-- Pagar Kayu -->
+                        <rect x="10" y="190" width="480" height="12" fill="#FDE047" rx="3"/>
+                        <line x1="40" y1="180" x2="40" y2="230" stroke="#CA8A04" stroke-width="6" stroke-linecap="round"/>
+                        <line x1="120" y1="180" x2="120" y2="230" stroke="#CA8A04" stroke-width="6" stroke-linecap="round"/>
+                        <line x1="380" y1="180" x2="380" y2="230" stroke="#CA8A04" stroke-width="6" stroke-linecap="round"/>
+                        <line x1="460" y1="180" x2="460" y2="230" stroke="#CA8A04" stroke-width="6" stroke-linecap="round"/>
+
+                        <!-- Bumbung Awning Merah-Putih (Persis Gambar Rujukan) -->
+                        <path d="M100 40 L400 40 L410 75 L90 75 Z" fill="#E11D48"/>
+                        <path d="M130 40 L160 40 L155 75 L125 75 Z" fill="#FFFFFF"/>
+                        <path d="M190 40 L220 40 L215 75 L185 75 Z" fill="#FFFFFF"/>
+                        <path d="M250 40 L280 40 L275 75 L245 75 Z" fill="#FFFFFF"/>
+                        <path d="M310 40 L340 40 L335 75 L305 75 Z" fill="#FFFFFF"/>
+                        <path d="M370 40 L400 40 L395 75 L365 75 Z" fill="#FFFFFF"/>
+
+                        <!-- Papan Kayu Kedai & Papan Tanda Tapak Kaki -->
+                        <rect x="110" y="75" width="280" height="95" rx="10" fill="#B45309" stroke="#78350F" stroke-width="4"/>
+                        <rect x="125" y="85" width="250" height="75" rx="8" fill="#F59E0B"/>
+                        <!-- Troli Biru (Rujukan 1) -->
+                        <g transform="translate(145, 95)">
+                            <rect x="5" y="5" width="35" height="25" rx="4" fill="#0284C7" stroke="#FFFFFF" stroke-width="3"/>
+                            <path d="M5 12 L40 12 M5 20 L40 20 M16 5 L16 30 M28 5 L28 30" stroke="#FFFFFF" stroke-width="2"/>
+                            <circle cx="12" cy="35" r="4" fill="#0369A1"/>
+                            <circle cx="32" cy="35" r="4" fill="#0369A1"/>
+                            <path d="M0 5 L5 5" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+                        </g>
+                        <!-- Tapak Kaki Haiwan (Paw Print) -->
+                        <g transform="translate(325, 100)" fill="#78350F">
+                            <ellipse cx="15" cy="20" rx="9" ry="7"/>
+                            <circle cx="6" cy="9" r="3.5"/>
+                            <circle cx="15" cy="6" r="3.5"/>
+                            <circle cx="24" cy="9" r="3.5"/>
+                        </g>
+
+                        <!-- Maskot Zirafah Comel (Kiri) Inspired by Ref 1 -->
+                        <g transform="translate(15, 60)">
+                            <path d="M40 70 L40 120" stroke="#F59E0B" stroke-width="14" stroke-linecap="round"/>
+                            <circle cx="40" cy="50" r="28" fill="#FACC15" stroke="#CA8A04" stroke-width="3"/>
+                            <!-- Tanduk Zirafah -->
+                            <line x1="30" y1="26" x2="25" y2="10" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/>
+                            <circle cx="24" cy="9" r="4" fill="#78350F"/>
+                            <line x1="50" y1="26" x2="55" y2="10" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/>
+                            <circle cx="56" cy="9" r="4" fill="#78350F"/>
+                            <!-- Muka & Mata -->
+                            <circle cx="32" cy="46" r="4" fill="#1E293B"/>
+                            <circle cx="48" cy="46" r="4" fill="#1E293B"/>
+                            <ellipse cx="40" cy="58" rx="14" ry="9" fill="#FEF08A"/>
+                            <path d="M34 58 Q40 64 46 58" stroke="#78350F" stroke-width="2.5" fill="none"/>
+                            <!-- Apron Merah Tapak Kaki -->
+                            <path d="M22 100 L58 100 L52 140 L28 140 Z" fill="#EF4444"/>
+                            <circle cx="40" cy="118" r="4" fill="#FFFFFF"/>
+                        </g>
+
+                        <!-- Maskot Panda Comel (Kanan) Inspired by Ref 1 -->
+                        <g transform="translate(410, 75)">
+                            <circle cx="40" cy="55" r="26" fill="#FFFFFF" stroke="#1E293B" stroke-width="3"/>
+                            <!-- Telinga Panda -->
+                            <circle cx="20" cy="35" r="9" fill="#1E293B"/>
+                            <circle cx="60" cy="35" r="9" fill="#1E293B"/>
+                            <!-- Tompok Mata Hitam -->
+                            <ellipse cx="30" cy="52" rx="7" ry="9" fill="#1E293B" transform="rotate(-15 30 52)"/>
+                            <ellipse cx="50" cy="52" rx="7" ry="9" fill="#1E293B" transform="rotate(15 50 52)"/>
+                            <circle cx="31" cy="50" r="2.5" fill="#FFFFFF"/>
+                            <circle cx="49" cy="50" r="2.5" fill="#FFFFFF"/>
+                            <ellipse cx="40" cy="60" rx="4" ry="3" fill="#1E293B"/>
+                            <!-- Apron Hijau Panda -->
+                            <path d="M22 95 L58 95 L54 135 L26 135 Z" fill="#22C55E"/>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Butang Besar Mula -->
+                <button onclick="playSound('click'); goToPage(2);" class="pulse-btn bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 hover:from-green-500 hover:to-teal-600 text-white font-black text-2xl sm:text-4xl px-10 py-3.5 rounded-full shadow-xl border-4 border-white tracking-wider transition transform active:scale-95 flex items-center gap-3 my-2 cursor-pointer">
+                    <span>MULA</span>
+                    <i class="fa-solid fa-circle-play text-3xl sm:text-4xl"></i>
+                </button>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- HALAMAN 2: PILIH BARANG ANDA               -->
+            <!-- ========================================== -->
+            <section id="page2" class="hidden flex-col justify-between min-h-[500px] space-y-4">
+                <!-- Tajuk Atas Tengah (Seragam dengan Halaman 3) -->
+                <div class="w-full flex justify-center items-center mb-1">
+                    <h2 class="text-xl sm:text-3xl font-black text-white tracking-wide bg-gradient-to-r from-pink-500 via-red-400 to-orange-400 inline-block px-8 py-1.5 rounded-2xl border-4 border-white shadow-md text-center">
+                        PILIH BARANG ANDA
+                    </h2>
+                </div>
+
+                <div class="flex-1 flex flex-col justify-center my-auto py-2">
+                    <!-- 6 Kad Barang (Grid 3x2) -->
+                    <div id="grid-page2" class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-3xl mx-auto w-full">
+                    </div>
+                </div>
+
+                <div class="flex justify-end items-center pt-3 border-t-2 border-pink-200 mt-2">
+                    <button onclick="playSound('click'); goToPage(3);" class="bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white font-extrabold text-lg sm:text-2xl px-7 py-2.5 rounded-2xl shadow-lg border-4 border-white flex items-center gap-2 bounce-card cursor-pointer">
+                        <span>SETERUSNYA</span>
+                        <i class="fa-solid fa-circle-arrow-right text-xl sm:text-2xl"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- HALAMAN 3: PILIH BARANG ANDA               -->
+            <!-- ========================================== -->
+            <section id="page3" class="hidden flex-col justify-between min-h-[500px] space-y-4">
+                <!-- Tajuk Atas Tengah (Sama Rekabentuk & Kedudukan Seperti Halaman 2) -->
+                <div class="w-full flex justify-center items-center mb-1 relative">
+                    <h2 class="text-xl sm:text-3xl font-black text-white tracking-wide bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 inline-block px-8 py-1.5 rounded-2xl border-4 border-white shadow-md text-center">
+                        PILIH BARANG ANDA
+                    </h2>
+                </div>
+
+                <div class="flex-1 flex flex-col justify-center my-auto py-2">
+                    <!-- 6 Kad Barang Halaman 3 -->
+                    <div id="grid-page3" class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-3xl mx-auto w-full">
+                    </div>
+                </div>
+
+                <div class="flex justify-end items-center pt-3 border-t-2 border-purple-200 mt-2">
+                    <button onclick="playSound('click'); calculateAndGoToPage4();" class="bg-gradient-to-r from-emerald-400 to-green-600 hover:from-emerald-500 hover:to-green-700 text-white font-extrabold text-lg sm:text-2xl px-7 py-2.5 rounded-2xl shadow-lg border-4 border-white flex items-center gap-2 bounce-card cursor-pointer">
+                        <span>KIRA HARGA</span>
+                        <i class="fa-solid fa-calculator text-xl sm:text-2xl"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- HALAMAN 4: PENGIRAAN HARGA                 -->
+            <!-- ========================================== -->
+            <section id="page4" class="hidden flex-col justify-between min-h-[500px] py-2 space-y-4">
+                <div class="flex-1 flex flex-col justify-center items-center my-auto py-2">
+                    <div class="text-center mb-3">
+                        <h2 class="text-2xl sm:text-4xl font-black text-white tracking-wide bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 inline-block px-8 py-1.5 rounded-2xl border-4 border-white shadow-md">
+                            PENGIRAAN HARGA
+                        </h2>
+                        <!-- Perkataan Ditambah Mengikut Arahan -->
+                        <p class="text-indigo-950 font-black text-base sm:text-xl mt-2 tracking-wide bg-indigo-100 inline-block px-4 py-1 rounded-full border border-indigo-300">
+                            MARI KITA KIRA HARGA BARANG
+                        </p>
+                    </div>
+
+                    <div id="calculation-container" class="w-full max-w-3xl bg-white/90 backdrop-blur p-4 sm:p-6 rounded-3xl border-4 border-amber-400 shadow-xl flex flex-col items-center justify-center space-y-4">
+                    </div>
+                </div>
+
+                <div class="flex justify-center sm:justify-end gap-3 pt-3 border-t-2 border-yellow-200 mt-2">
+                    <!-- Butang Bulat Biru -->
+                    <button onclick="playSound('click'); selectOtherItems();" class="bg-gradient-to-r from-blue-400 to-indigo-600 hover:from-blue-500 hover:to-indigo-700 text-white font-black text-base sm:text-xl px-5 py-2.5 rounded-full shadow-xl border-4 border-white flex items-center gap-2 bounce-card active:scale-95 cursor-pointer">
+                        <i class="fa-solid fa-rotate-left text-xl"></i>
+                        <span>BARANG LAIN</span>
+                    </button>
+
+                    <!-- Butang Bulat Kuning -->
+                    <button onclick="playSound('click'); resetToHome();" class="bg-gradient-to-r from-yellow-300 to-amber-400 hover:from-yellow-400 hover:to-amber-500 text-yellow-950 font-black text-base sm:text-xl px-5 py-2.5 rounded-full shadow-xl border-4 border-white flex items-center gap-2 bounce-card active:scale-95 cursor-pointer">
+                        <i class="fa-solid fa-house text-xl"></i>
+                        <span>HALAMAN UTAMA</span>
+                    </button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL BAKUL -->
+    <div id="basket-modal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-3">
+        <div class="bg-white w-full max-w-md rounded-3xl border-8 border-pink-400 p-4 shadow-2xl flex flex-col justify-between max-h-[85vh]">
+            <div>
+                <div class="flex justify-between items-center border-b-4 border-pink-200 pb-2 mb-3">
+                    <div class="flex items-center gap-2 text-pink-600 text-2xl font-black">
+                        <i class="fa-solid fa-basket-shopping text-3xl"></i>
+                        <span>BAKUL SAYA</span>
+                    </div>
+                    <button onclick="closeBasketModal()" class="text-gray-400 hover:text-red-500 text-3xl font-black cursor-pointer">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="basket-items-container" class="space-y-2.5 overflow-y-auto max-h-56 pr-1">
+                </div>
+            </div>
+
+            <div class="pt-3 border-t-4 border-pink-200 mt-3 flex justify-between items-center">
+                <span class="text-gray-700 font-bold text-base">Jumlah Barang: <span id="basket-count-text" class="text-pink-600 font-black">0</span>/2</span>
+                <button onclick="closeBasketModal()" class="bg-pink-500 hover:bg-pink-600 text-white font-extrabold px-5 py-1.5 rounded-2xl border-2 border-white text-base cursor-pointer">
+                    TUTUP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL AMARAN -->
+    <div id="warning-modal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-3">
+        <div class="bg-white w-full max-w-md rounded-3xl border-8 border-yellow-400 p-5 shadow-2xl text-center space-y-3 animate-shake">
+            <div class="text-yellow-500 text-5xl">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 id="warning-title" class="text-2xl font-black text-yellow-800">SILA PILIH BARANG ANDA</h3>
+            <p id="warning-message" class="text-base sm:text-lg font-bold text-gray-800 bg-yellow-50 p-3 rounded-2xl border-2 border-yellow-200">
+                SILA PILIH 2 BARANG
+            </p>
+            <div id="warning-buttons" class="flex justify-center">
+                <button onclick="closeWarningModal()" class="bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-yellow-950 font-black px-8 py-2 rounded-2xl border-2 border-white text-lg shadow-lg cursor-pointer">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIK JAVASCRIPT -->
+    <script>
+        // Gambar Barangan Tepat Mengikut Gambar Rujukan "KAD BARANGAN.jpg"
+        const itemSVGs = {
+            // Roti (RM2) - Buku roti potong berkulit perang keemasan
+            roti: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <path d="M20 42 C 20 20, 80 20, 80 42 L 80 78 C 80 84, 72 88, 50 88 C 28 88, 20 84, 20 78 Z" fill="#883B10" stroke="#451A03" stroke-width="3"/>
+                <path d="M24 44 C 24 28, 76 28, 76 44 L 76 76 C 76 80, 68 84, 50 84 C 32 84, 24 80, 24 76 Z" fill="#FDE68A"/>
+                <circle cx="38" cy="46" r="2.5" fill="#D97706"/>
+                <circle cx="50" cy="58" r="2.5" fill="#D97706"/>
+                <circle cx="62" cy="48" r="2.5" fill="#D97706"/>
+                <circle cx="44" cy="68" r="2.5" fill="#D97706"/>
+                <circle cx="58" cy="70" r="2.5" fill="#D97706"/>
+            </svg>`,
+
+            // Susu (RM3) - Gelas kaca berisi susu putih
+            susu: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <path d="M28 20 L72 20 L64 88 L36 88 Z" fill="#E0F2FE" stroke="#38BDF8" stroke-width="4"/>
+                <path d="M31 35 L69 35 L63 84 L37 84 Z" fill="#FFFFFF"/>
+                <ellipse cx="50" cy="35" rx="19" ry="4" fill="#BAE6FD"/>
+                <path d="M36 40 Q40 70 38 80" stroke="#FFFFFF" stroke-width="3" opacity="0.6" fill="none"/>
+            </svg>`,
+
+            // Telur (RM3) - Dua biji telur ayam jingga
+            telur: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <!-- Telur Kiri -->
+                <ellipse cx="38" cy="56" rx="22" ry="28" fill="#FB923C" stroke="#C2410C" stroke-width="3.5" transform="rotate(-10 38 56)"/>
+                <ellipse cx="32" cy="46" rx="6" ry="12" fill="#FFFFFF" opacity="0.4" transform="rotate(-25 32 46)"/>
+                <!-- Telur Kanan -->
+                <ellipse cx="64" cy="56" rx="22" ry="28" fill="#F97316" stroke="#C2410C" stroke-width="3.5" transform="rotate(10 64 56)"/>
+                <ellipse cx="58" cy="46" rx="6" ry="12" fill="#FFFFFF" opacity="0.4" transform="rotate(-5 58 46)"/>
+            </svg>`,
+
+            // Pisang (RM4) - Sisir pisang kuning (Rujukan 2)
+            pisang: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <path d="M22 28 C 45 18, 88 38, 80 80 C 65 88, 38 72, 22 28 Z" fill="#FACC15" stroke="#854D0E" stroke-width="3.5"/>
+                <path d="M30 35 C 50 28, 82 45, 76 82 C 62 88, 42 75, 30 35 Z" fill="#FEF08A"/>
+                <path d="M15 42 C 38 32, 72 52, 68 88 C 55 92, 30 80, 15 42 Z" fill="#EAB308" stroke="#854D0E" stroke-width="3"/>
+                <rect x="20" y="20" width="12" height="10" rx="3" fill="#65A30D"/>
+            </svg>`,
+
+            // Epal (RM4) - Epal merah berkilat berkulit daun
+            epal: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <path d="M26 36 C 14 54, 20 88, 50 88 C 80 88, 86 54, 74 36 C 62 24, 56 36, 50 36 C 44 36, 38 24, 26 36 Z" fill="#DC2626" stroke="#7F1D1D" stroke-width="4"/>
+                <path d="M50 36 Q 52 20 60 12" stroke="#451A03" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M54 20 Q 74 12 68 28 Z" fill="#16A34A" stroke="#14532D" stroke-width="2"/>
+                <ellipse cx="36" cy="48" rx="7" ry="14" fill="#FFFFFF" opacity="0.45" transform="rotate(-20 36 48)"/>
+            </svg>`,
+
+            // Nasi (RM5) - Mangkuk biru berisi nasi putih bertimbun
+            nasi: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <!-- Nasi Bertimbun -->
+                <path d="M22 52 Q 50 18 78 52 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3"/>
+                <ellipse cx="50" cy="50" rx="28" ry="10" fill="#F8FAFC"/>
+                <!-- Mangkuk Biru -->
+                <path d="M16 50 L 26 86 C 35 94, 65 94, 74 86 L 84 50 Z" fill="#0284C7" stroke="#0369A1" stroke-width="4"/>
+                <ellipse cx="50" cy="50" rx="34" ry="7" fill="#38BDF8"/>
+            </svg>`,
+
+            // Ayam (RM7) - Ayam panggang di atas pinggan bersalad
+            ayam: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <!-- Pinggan & Salad -->
+                <ellipse cx="50" cy="72" rx="42" ry="16" fill="#16A34A"/>
+                <ellipse cx="50" cy="70" rx="38" ry="13" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+                <!-- Ayam Panggang -->
+                <path d="M24 55 C 14 60, 22 80, 50 78 C 78 76, 84 55, 68 44 C 52 36, 36 38, 24 55 Z" fill="#EA580C" stroke="#7C2D12" stroke-width="3.5"/>
+                <path d="M30 52 C 38 44, 62 44, 66 52 C 60 68, 38 68, 30 52 Z" fill="#F97316"/>
+                <!-- Tulang Ayam -->
+                <rect x="70" y="58" width="22" height="10" rx="5" fill="#FEF3C7" stroke="#7C2D12" stroke-width="2" transform="rotate(20 70 58)"/>
+            </svg>`,
+
+            // Ikan (RM7) - Ikan goreng di atas pinggan bersalad & lemon
+            ikan: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <ellipse cx="50" cy="52" rx="42" ry="38" fill="#F8FAFC" stroke="#94A3B8" stroke-width="3"/>
+                <circle cx="50" cy="52" r="32" fill="#16A34A" opacity="0.3"/>
+                <!-- Body Ikan -->
+                <path d="M20 52 C 40 24, 78 32, 84 52 C 78 72, 40 80, 20 52 Z" fill="#D97706" stroke="#78350F" stroke-width="3"/>
+                <path d="M18 52 L 6 38 L 6 66 Z" fill="#B45309" stroke="#78350F" stroke-width="2"/>
+                <circle cx="72" cy="46" r="4" fill="#FFFFFF"/>
+                <circle cx="73" cy="46" r="2" fill="#000000"/>
+                <path d="M42 38 Q48 52 42 66 M54 40 Q60 52 54 64" stroke="#78350F" stroke-width="2.5" fill="none"/>
+                <!-- Lemon -->
+                <circle cx="30" cy="36" r="6" fill="#FACC15"/>
+            </svg>`,
+
+            // Lobak Merah (RM6) - Dua batang lobak merah jingga berdaun
+            lobak: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <!-- Daun Hijau -->
+                <path d="M38 32 Q 25 10 12 18 M46 30 Q 46 6 46 10 M54 30 Q 65 8 78 16" stroke="#22C55E" stroke-width="5" stroke-linecap="round" fill="none"/>
+                <!-- Lobak 1 -->
+                <path d="M28 32 L 58 32 L 40 90 Z" fill="#EA580C" stroke="#7C2D12" stroke-width="3" transform="rotate(-10 40 60)"/>
+                <!-- Lobak 2 -->
+                <path d="M42 32 L 70 32 L 56 86 Z" fill="#F97316" stroke="#7C2D12" stroke-width="3" transform="rotate(12 56 60)"/>
+            </svg>`,
+
+            // Air (RM1) - Botol air mineral biru comel berwajah gembira & percikan air
+            air: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <!-- Percikan Air -->
+                <path d="M20 30 Q 15 20 22 15 M80 30 Q 85 20 78 15" stroke="#38BDF8" stroke-width="3" stroke-linecap="round" fill="none"/>
+                <!-- Botol -->
+                <rect x="34" y="24" width="32" height="66" rx="8" fill="#E0F2FE" stroke="#0284C7" stroke-width="3.5"/>
+                <rect x="38" y="14" width="24" height="10" rx="3" fill="#0284C7"/>
+                <rect x="34" y="44" width="32" height="28" fill="#38BDF8" opacity="0.8"/>
+                <!-- Muka Comel Botol -->
+                <circle cx="44" cy="54" r="2" fill="#0369A1"/>
+                <circle cx="56" cy="54" r="2" fill="#0369A1"/>
+                <path d="M47 59 Q 50 63 53 59" stroke="#0369A1" stroke-width="2" fill="none"/>
+            </svg>`,
+
+            // Sabun (RM4) - Buku sabun merah jambu berbuih
+            sabun: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <!-- Buih Sabun -->
+                <circle cx="28" cy="28" r="8" fill="#E0F2FE" stroke="#BAE6FD" stroke-width="2"/>
+                <circle cx="72" cy="24" r="10" fill="#E0F2FE" stroke="#BAE6FD" stroke-width="2"/>
+                <circle cx="82" cy="40" r="6" fill="#E0F2FE" stroke="#BAE6FD" stroke-width="2"/>
+                <!-- Ketul Sabun -->
+                <rect x="20" y="38" width="60" height="42" rx="16" fill="#F472B6" stroke="#9D174D" stroke-width="4"/>
+                <ellipse cx="50" cy="59" rx="18" ry="8" fill="#FBCFE8"/>
+            </svg>`,
+
+            // Ubat Gigi (RM3) - Tiub ubat gigi merah-biru bersimbol gigi
+            ubatgigi: `<svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 100 100">
+                <!-- Tiub -->
+                <path d="M20 75 L 72 32 L 82 46 L 30 88 Z" fill="#2563EB" stroke="#1E3A8A" stroke-width="3.5"/>
+                <path d="M20 75 L 48 52 L 58 66 L 30 88 Z" fill="#DC2626"/>
+                <!-- Penutup -->
+                <rect x="74" y="24" width="14" height="14" rx="3" fill="#1E293B" transform="rotate(-32 74 24)"/>
+                <!-- Simbol Gigi -->
+                <path d="M48 44 Q 52 38 56 44 T 52 52 Z" fill="#FFFFFF"/>
+            </svg>`
+        };
+
+        const page2Items = [
+            { id: 'roti', name: 'Roti', price: 2, svgKey: 'roti', bg: 'bg-amber-50', border: 'border-amber-400' },
+            { id: 'susu', name: 'Susu', price: 3, svgKey: 'susu', bg: 'bg-sky-50', border: 'border-sky-400' },
+            { id: 'telur', name: 'Telur', price: 3, svgKey: 'telur', bg: 'bg-orange-50', border: 'border-orange-400' },
+            { id: 'pisang', name: 'Pisang', price: 4, svgKey: 'pisang', bg: 'bg-yellow-50', border: 'border-yellow-400' },
+            { id: 'epal', name: 'Epal', price: 4, svgKey: 'epal', bg: 'bg-red-50', border: 'border-red-400' },
+            { id: 'nasi', name: 'Nasi', price: 5, svgKey: 'nasi', bg: 'bg-emerald-50', border: 'border-emerald-400' }
+        ];
+
+        const page3Items = [
+            { id: 'ayam', name: 'Ayam', price: 7, svgKey: 'ayam', bg: 'bg-orange-100', border: 'border-orange-500' },
+            { id: 'ikan', name: 'Ikan', price: 7, svgKey: 'ikan', bg: 'bg-cyan-100', border: 'border-cyan-400' },
+            { id: 'lobak', name: 'Lobak Merah', price: 6, svgKey: 'lobak', bg: 'bg-red-100', border: 'border-orange-400' },
+            { id: 'air', name: 'Air', price: 1, svgKey: 'air', bg: 'bg-sky-100', border: 'border-sky-400' },
+            { id: 'sabun', name: 'Sabun', price: 4, svgKey: 'sabun', bg: 'bg-pink-100', border: 'border-pink-400' },
+            { id: 'ubatgigi', name: 'Ubat Gigi', price: 3, svgKey: 'ubatgigi', bg: 'bg-purple-100', border: 'border-purple-400' }
+        ];
+
+        let selectedItems = [];
+        let currentPage = 1;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'select') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'remove') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(200, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } else if (type === 'warning') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } else if (type === 'win') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const noteOsc = audioCtx.createOscillator();
+                    const noteGain = audioCtx.createGain();
+                    noteOsc.connect(noteGain);
+                    noteGain.connect(audioCtx.destination);
+                    noteOsc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.1);
+                    noteGain.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.1);
+                    noteGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.1 + 0.2);
+                    noteOsc.start(audioCtx.currentTime + idx * 0.1);
+                    noteOsc.stop(audioCtx.currentTime + idx * 0.1 + 0.2);
+                });
+            }
+        }
+
+        function goToPage(pageNum) {
+            currentPage = pageNum;
+
+            const mainContainer = document.getElementById('main-card-container');
+            mainContainer.className = mainContainer.className.replace(/bg-theme-page\d/, `bg-theme-page${pageNum}`);
+
+            document.getElementById('page1').classList.add('hidden');
+            document.getElementById('page2').classList.add('hidden');
+            document.getElementById('page3').classList.add('hidden');
+            document.getElementById('page4').classList.add('hidden');
+
+            const topBar = document.getElementById('top-bar');
+            const basketBtn = document.getElementById('basket-btn');
+            const navRightSlot = document.getElementById('nav-right-slot');
+            navRightSlot.innerHTML = '';
+
+            if (pageNum === 1) {
+                topBar.classList.add('hidden');
+                document.getElementById('page1').classList.remove('hidden');
+                document.getElementById('page1').classList.add('flex');
+            } else if (pageNum === 2) {
+                topBar.classList.remove('hidden');
+                basketBtn.classList.remove('hidden');
+                document.getElementById('page2').classList.remove('hidden');
+                document.getElementById('page2').classList.add('flex');
+                renderGrid('grid-page2', page2Items);
+            } else if (pageNum === 3) {
+                topBar.classList.remove('hidden');
+                basketBtn.classList.remove('hidden');
+
+                // Masukkan Butang Halaman 2 di Sebelah Kanan Header Bar
+                navRightSlot.innerHTML = `
+                    <button onclick="playSound('click'); goToPage(2);" class="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-extrabold text-xs sm:text-sm px-3 py-1 rounded-xl border-2 border-white shadow flex items-center gap-1.5 bounce-card cursor-pointer">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>HALAMAN 2</span>
+                    </button>
+                `;
+
+                document.getElementById('page3').classList.remove('hidden');
+                document.getElementById('page3').classList.add('flex');
+                renderGrid('grid-page3', page3Items);
+            } else if (pageNum === 4) {
+                topBar.classList.add('hidden');
+                document.getElementById('page4').classList.remove('hidden');
+                document.getElementById('page4').classList.add('flex');
+                renderPage4Calculation();
+            }
+            updateBasketBadge();
+        }
+
+        function renderGrid(containerId, itemsArray) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            itemsArray.forEach(item => {
+                const isSelected = selectedItems.some(i => i.id === item.id);
+                const selectionIndex = selectedItems.findIndex(i => i.id === item.id);
+
+                const card = document.createElement('div');
+                card.className = `bounce-card cursor-pointer rounded-2xl sm:rounded-3xl p-1.5 sm:p-2.5 border-4 ${item.border} ${item.bg} shadow-md relative flex flex-col items-center justify-between text-center transition-all ${
+                    isSelected ? 'ring-8 ring-green-400 scale-105' : ''
+                }`;
+
+                card.onclick = () => handleItemClick(item);
+
+                card.innerHTML = `
+                    ${isSelected ? `
+                        <div class="absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-7 h-7 flex items-center justify-center font-black border-2 border-white shadow-md text-sm">
+                            ${selectionIndex + 1}
+                        </div>
+                    ` : ''}
+                    <div class="p-1 bg-white rounded-2xl shadow-inner w-full flex justify-center items-center h-16 sm:h-20">
+                        ${itemSVGs[item.svgKey]}
+                    </div>
+                    <div class="mt-1 w-full">
+                        <div class="font-extrabold text-gray-800 text-sm sm:text-lg tracking-wide">${item.name}</div>
+                        <div class="inline-block bg-yellow-400 text-red-800 font-black px-2.5 py-0.5 rounded-full text-xs sm:text-base border border-yellow-500 mt-0.5 shadow-sm">
+                            RM ${item.price}
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function handleItemClick(item) {
+            const existingIndex = selectedItems.findIndex(i => i.id === item.id);
+
+            if (existingIndex !== -1) {
+                selectedItems.splice(existingIndex, 1);
+                playSound('remove');
+            } else {
+                if (selectedItems.length >= 2) {
+                    playSound('warning');
+                    showWarningModal("BAKUL ANDA TELAH PENUH", "BUANG BARANG LAIN UNTUK MENAMBAH BARANG BARU");
+                    return;
+                }
+                selectedItems.push(item);
+                playSound('select');
+            }
+
+            updateBasketBadge();
+            if (currentPage === 2) renderGrid('grid-page2', page2Items);
+            if (currentPage === 3) renderGrid('grid-page3', page3Items);
+        }
+
+        function updateBasketBadge() {
+            const badge = document.getElementById('basket-badge');
+            badge.innerText = selectedItems.length;
+        }
+
+        function openBasketModal() {
+            playSound('click');
+            const container = document.getElementById('basket-items-container');
+            const countText = document.getElementById('basket-count-text');
+            container.innerHTML = '';
+            countText.innerText = selectedItems.length;
+
+            if (selectedItems.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-gray-500 font-bold text-base">
+                        Bakul anda masih kosong.<br>Sila tekan barang untuk menambah! 🛒
+                    </div>
+                `;
+            } else {
+                selectedItems.forEach((item, index) => {
+                    const row = document.createElement('div');
+                    row.className = "flex items-center justify-between bg-white p-2 rounded-2xl border-2 border-pink-200 shadow-sm";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2.5">
+                            <span class="bg-yellow-400 text-yellow-900 font-black w-5 h-5 rounded-full flex items-center justify-center text-xs border">
+                                ${index + 1}
+                            </span>
+                            <div class="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-xl">
+                                ${itemSVGs[item.svgKey]}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm">${item.name}</h4>
+                                <span class="text-pink-600 font-black text-xs">RM ${item.price}</span>
+                            </div>
+                        </div>
+                        <button onclick="removeItemFromBasket('${item.id}')" class="bg-red-500 hover:bg-red-600 text-white font-bold p-1 px-2.5 rounded-xl border border-red-700 shadow flex items-center gap-1 text-xs cursor-pointer">
+                            <i class="fa-solid fa-trash-can"></i>
+                            <span>BUANG</span>
+                        </button>
+                    `;
+                    container.appendChild(row);
+                });
+            }
+
+            document.getElementById('basket-modal').classList.remove('hidden');
+        }
+
+        function closeBasketModal() {
+            document.getElementById('basket-modal').classList.add('hidden');
+        }
+
+        function removeItemFromBasket(itemId) {
+            selectedItems = selectedItems.filter(i => i.id !== itemId);
+            playSound('remove');
+            updateBasketBadge();
+            openBasketModal();
+            if (currentPage === 2) renderGrid('grid-page2', page2Items);
+            if (currentPage === 3) renderGrid('grid-page3', page3Items);
+        }
+
+        function showWarningModal(title, msg) {
+            document.getElementById('warning-title').innerText = title;
+            document.getElementById('warning-message').innerText = msg;
+            document.getElementById('warning-modal').classList.remove('hidden');
+        }
+
+        function closeWarningModal() {
+            document.getElementById('warning-modal').classList.add('hidden');
+        }
+
+        function calculateAndGoToPage4() {
+            if (selectedItems.length < 2) {
+                playSound('warning');
+                showWarningModal("SILA PILIH BARANG ANDA", "SILA PILIH 2 BARANG");
+                return;
+            }
+            goToPage(4);
+        }
+
+        function renderPage4Calculation() {
+            const container = document.getElementById('calculation-container');
+            container.innerHTML = '';
+
+            if (selectedItems.length < 2) return;
+
+            const item1 = selectedItems[0];
+            const item2 = selectedItems[1];
+            const totalPrice = item1.price + item2.price;
+
+            let htmlContent = `
+                <div class="flex flex-row items-center justify-center gap-2 sm:gap-5 w-full py-1">
+                    <!-- Barang 1 -->
+                    <div class="flex flex-col items-center bg-yellow-50 p-2.5 rounded-2xl border-4 border-yellow-300 shadow-md w-28 sm:w-40 text-center">
+                        <div class="text-[10px] font-black text-gray-500 mb-0.5">BARANG 1</div>
+                        <div class="bg-white p-1 rounded-xl w-full flex justify-center mb-1 shadow-inner">
+                            ${itemSVGs[item1.svgKey]}
+                        </div>
+                        <div class="font-extrabold text-sm sm:text-lg text-gray-800 uppercase">${item1.name}</div>
+                        <div class="bg-yellow-400 text-red-800 font-black px-2.5 py-0.5 rounded-full text-xs sm:text-lg border border-yellow-500 mt-1">
+                            RM ${item1.price}
+                        </div>
+                    </div>
+
+                    <!-- Tambah -->
+                    <div class="text-2xl sm:text-4xl font-black text-orange-500">
+                        +
+                    </div>
+
+                    <!-- Barang 2 -->
+                    <div class="flex flex-col items-center bg-purple-50 p-2.5 rounded-2xl border-4 border-purple-300 shadow-md w-28 sm:w-40 text-center">
+                        <div class="text-[10px] font-black text-gray-500 mb-0.5">BARANG 2</div>
+                        <div class="bg-white p-1 rounded-xl w-full flex justify-center mb-1 shadow-inner">
+                            ${itemSVGs[item2.svgKey]}
+                        </div>
+                        <div class="font-extrabold text-sm sm:text-lg text-gray-800 uppercase">${item2.name}</div>
+                        <div class="bg-purple-300 text-purple-900 font-black px-2.5 py-0.5 rounded-full text-xs sm:text-lg border border-purple-400 mt-1">
+                            RM ${item2.price}
+                        </div>
+                    </div>
+
+                    <!-- Sama Dengan -->
+                    <div class="text-2xl sm:text-4xl font-black text-green-500">
+                        =
+                    </div>
+
+                    <!-- Jumlah Harga -->
+                    <div class="flex flex-col items-center bg-green-100 p-2.5 rounded-2xl border-4 border-green-500 shadow-lg min-w-[120px] sm:min-w-[160px] text-center">
+                        <div class="text-[10px] font-black text-green-800 mb-0.5">JUMLAH HARGA</div>
+                        <div class="text-xl sm:text-3xl font-black text-green-600 my-0.5">
+                            RM ${totalPrice}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const textFormat = `${item1.name.toUpperCase()} (RM${item1.price}) + ${item2.name.toUpperCase()} (RM${item2.price}) = RM${totalPrice}`;
+
+            htmlContent += `
+                <div class="bg-yellow-100 border-2 border-yellow-400 text-yellow-950 p-2.5 rounded-xl text-center text-base sm:text-xl font-black w-full shadow-inner tracking-wide">
+                    ${textFormat}
+                </div>
+            `;
+
+            container.innerHTML = htmlContent;
+
+            playSound('win');
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 70,
+                    spread: 60,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        function selectOtherItems() {
+            goToPage(2);
+        }
+
+        function resetToHome() {
+            selectedItems = [];
+            updateBasketBadge();
+            goToPage(1);
+        }
+    </script>
+</body>
+</html>
